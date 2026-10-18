@@ -45,6 +45,12 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: pnpm run lint
 
+      - name: CSP smoke test
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          pnpm lerna run build:examples-app --scope=@jsonforms/vue-vanilla
+          pnpm lerna run test:csp --scope=@jsonforms/vue-vanilla
+
       - name: Test
         if: matrix.os == 'windows-latest' || matrix.os == 'macos-latest'
         run: |

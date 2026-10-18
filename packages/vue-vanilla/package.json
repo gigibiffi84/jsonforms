@@ -50,7 +50,8 @@
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
     "doc": "typedoc --name 'JSON Forms Vue Vanilla Renderers' --out docs src",
-    "test": "vue-cli-service test:unit"
+    "test": "vue-cli-service test:unit",
+    "test:csp": "node tests/csp/csp-smoke.mjs"
   },
   "dependencies": {
     "lodash": "^4.18.1"
