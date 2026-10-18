@@ -22,8 +22,10 @@
   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
   THE SOFTWARE.
 */
-import type {
+import {
+  FormValidator,
   FormValidatorFactory,
+  isStructuralMatch,
   JsonSchema,
   UISchemaElement,
   ValidationIssue,
@@ -83,13 +85,8 @@ export const data = {
  * checks `required`, that string values are lowercase and that an `email`
  * contains a dot. It compiles nothing and evaluates nothing, so it also works
  * under a Content Security Policy without `unsafe-eval`.
- *
- * It has no `matches`, so the rule on `frequency` is evaluated by core's
- * Structural Matcher.
  */
-export const createHandwrittenValidator: FormValidatorFactory = (
-  formSchema
-) => ({
+const handwrittenValidator = (formSchema: JsonSchema): FormValidator => ({
   validate: (formData) => {
     const issues: ValidationIssue[] = [];
     const values = (formData ?? {}) as Record<string, unknown>;
@@ -128,6 +125,19 @@ export const createHandwrittenValidator: FormValidatorFactory = (
     return issues;
   },
 });
+
+/** Other schemas, e.g. the rule condition on `frequency`. */
+const structuralValidator = (conditionSchema: JsonSchema): FormValidator => ({
+  validate: (value) =>
+    isStructuralMatch(conditionSchema, value)
+      ? []
+      : [{ path: '', message: 'must match the schema' }],
+});
+
+export const createHandwrittenValidator: FormValidatorFactory = (forSchema) =>
+  forSchema === schema
+    ? handwrittenValidator(forSchema)
+    : structuralValidator(forSchema);
 
 registerExamples([
   {

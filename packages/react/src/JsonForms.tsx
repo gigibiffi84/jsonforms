@@ -191,10 +191,7 @@ export interface JsonFormsInitStateProps {
   renderers: JsonFormsRendererRegistryEntry[];
   cells?: JsonFormsCellRendererRegistryEntry[];
   ajv?: Ajv;
-  /**
-   * A custom Form Validator: a factory producing one per schema, or a
-   * validator already bound to the schema. Takes precedence over `ajv`.
-   */
+  /** Creates the Form Validator for a schema. Takes precedence over `ajv`. */
   validator?: FormValidatorFactory;
   config?: any;
   uischemas?: JsonFormsUISchemaRegistryEntry[];
