@@ -4,6 +4,7 @@ import { JsonSchema, UISchemaElement } from '../models';
 import get from 'lodash/get';
 import { errorsAt } from '../util';
 import type { FormValidator } from '../util/formValidator';
+import type { RuleValidator } from '../util/runtime';
 import {
   JsonFormsCellRendererRegistryEntry,
   JsonFormsCore,
@@ -73,6 +74,11 @@ export const extractData = (state: JsonFormsCore) => get(state, 'data');
 export const extractSchema = (state: JsonFormsCore) => get(state, 'schema');
 export const extractUiSchema = (state: JsonFormsCore) => get(state, 'uischema');
 export const extractAjv = (state: JsonFormsCore) => get(state, 'ajv');
+/** What rule conditions are evaluated with: the validator factory, else Ajv. */
+export const getRuleValidator = (state: JsonFormsState): RuleValidator => {
+  const core: JsonFormsCore | undefined = get(state, 'jsonforms.core');
+  return core?.validatorFactory ?? core?.ajv;
+};
 export const extractValidator = (
   state: JsonFormsCore
 ): FormValidator | undefined => get(state, 'validator');
