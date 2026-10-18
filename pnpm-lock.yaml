@@ -440,16 +440,25 @@ importers:
 
   packages/examples:
     dependencies:
+      '@valibot/to-json-schema':
+        specifier: ^1.8.0
+        version: 1.8.0(valibot@1.5.0(typescript@5.8.3))
       ajv-i18n:
         specifier: ^4.2.0
         version: 4.2.0(ajv@8.18.0)
       lodash:
         specifier: ^4.18.1
         version: 4.18.1
+      valibot:
+        specifier: ^1.5.0
+        version: 1.5.0(typescript@5.8.3)
     devDependencies:
       '@jsonforms/core':
         specifier: workspace:*
         version: link:../core
+      '@jsonforms/standard-schema':
+        specifier: workspace:*
+        version: link:../standard-schema
       '@types/node':
         specifier: ^24.12.2
         version: 24.12.2
@@ -855,6 +864,79 @@ importers:
       typescript:
         specifier: ~5.8.3
         version: 5.8.3
+
+  packages/standard-schema:
+    dependencies:
+      '@standard-schema/spec':
+        specifier: ^1.1.0
+        version: 1.1.0
+    devDependencies:
+      '@istanbuljs/nyc-config-typescript':
+        specifier: ^1.0.2
+        version: 1.0.2(nyc@15.1.0(supports-color@8.1.1))
+      '@jsonforms/core':
+        specifier: workspace:*
+        version: link:../core
+      '@typescript-eslint/eslint-plugin':
+        specifier: ^5.54.1
+        version: 5.62.0(@typescript-eslint/parser@5.62.0(eslint@8.57.0(supports-color@8.1.1))(supports-color@8.1.1)(typescript@5.8.3))(eslint@8.57.0(supports-color@8.1.1))(supports-color@8.1.1)(typescript@5.8.3)
+      '@typescript-eslint/parser':
+        specifier: ^5.54.1
+        version: 5.62.0(eslint@8.57.0(supports-color@8.1.1))(supports-color@8.1.1)(typescript@5.8.3)
+      '@valibot/to-json-schema':
+        specifier: ^1.8.0
+        version: 1.8.0(valibot@1.5.0(typescript@5.8.3))
+      ava:
+        specifier: ^6.1.2
+        version: 6.1.3(encoding@0.1.13)(supports-color@8.1.1)
+      eslint:
+        specifier: ^8.56.0
+        version: 8.57.0(supports-color@8.1.1)
+      eslint-config-prettier:
+        specifier: ^8.7.0
+        version: 8.10.0(eslint@8.57.0(supports-color@8.1.1))
+      eslint-plugin-import:
+        specifier: ^2.27.5
+        version: 2.29.1(@typescript-eslint/parser@5.62.0(eslint@8.57.0(supports-color@8.1.1))(supports-color@8.1.1)(typescript@5.8.3))(eslint@8.57.0(supports-color@8.1.1))(supports-color@8.1.1)
+      eslint-plugin-prettier:
+        specifier: ^4.2.1
+        version: 4.2.1(eslint-config-prettier@8.10.0(eslint@8.57.0(supports-color@8.1.1)))(eslint@8.57.0(supports-color@8.1.1))(prettier@2.8.8)
+      nyc:
+        specifier: ^15.1.0
+        version: 15.1.0(supports-color@8.1.1)
+      prettier:
+        specifier: ^2.8.4
+        version: 2.8.8
+      rimraf:
+        specifier: ^6.1.0
+        version: 6.1.0
+      rollup:
+        specifier: ^2.78.0
+        version: 2.80.0
+      rollup-plugin-cleanup:
+        specifier: ^3.2.1
+        version: 3.2.1(rollup@2.80.0)
+      rollup-plugin-typescript2:
+        specifier: ^0.34.1
+        version: 0.34.1(rollup@2.80.0)(typescript@5.8.3)
+      rollup-plugin-visualizer:
+        specifier: ^5.4.1
+        version: 5.12.0(rollup@2.80.0)
+      ts-node:
+        specifier: ^10.4.0
+        version: 10.9.2(@types/node@24.12.2)(typescript@5.8.3)
+      tslib:
+        specifier: ^2.5.0
+        version: 2.8.1
+      typedoc:
+        specifier: ~0.25.3
+        version: 0.25.13(typescript@5.8.3)
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      valibot:
+        specifier: ^1.5.0
+        version: 1.5.0(typescript@5.8.3)
 
   packages/vanilla-renderers:
     dependencies:
@@ -4558,6 +4640,9 @@ packages:
   '@soda/get-current-script@1.0.2':
     resolution: {integrity: sha512-T7VNNlYVM1SgQ+VsMYhnDkcGmWhQdL0bDyGm5TlQ3GBXnJscEClUUOKduWTmm2zCnvNLC1hc3JpuXjs/nFOc5w==}
 
+  '@standard-schema/spec@1.1.0':
+    resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
+
   '@tootallnate/once@2.0.0':
     resolution: {integrity: sha512-XCuKFP5PS55gnMVu3dty8KPatLqUoy/ZYzDzAGCQ8JNFCkLXzmI7vNHCR+XpbZaMWQK/vQubr7PkYq8g470J/A==}
     engines: {node: '>= 10'}
@@ -4968,6 +5053,11 @@ packages:
   '@ungap/structured-clone@1.2.0':
     resolution: {integrity: sha512-zuVdFrMJiuCDQUMCzQaD6KL28MjnqqN8XnAqiEq9PNm/hCPTSGfrXCOfwj1ow4LFb/tNymJPwsNbVePc1xFqrQ==}
     deprecated: Potential CWE-502 - Update to 1.3.1 or higher
+
+  '@valibot/to-json-schema@1.8.0':
+    resolution: {integrity: sha512-a0M+uwCuQZEPAo65NYkFSJ14O5c213KoSZmPdoCfuFvUhfULi4T2Z6Tpjv6lTVMW9RoLm74RpRAjNEa43KcN+g==}
+    peerDependencies:
+      valibot: ^1.5.0
 
   '@vercel/nft@0.26.5':
     resolution: {integrity: sha512-NHxohEqad6Ra/r4lGknO52uc/GrWILXAMs1BB4401GTqww0fw1bAqzpG1XHuDO+dprg4GvsD9ZLLSsdo78p9hQ==}
@@ -13455,6 +13545,14 @@ packages:
     resolution: {integrity: sha512-kiGUalWN+rgBJ/1OHZsBtU4rXZOfj/7rKQxULKlIzwzQSvMJUUNgPwJEEh7gU6xEVxC0ahoOBvN2YI8GH6FNgA==}
     engines: {node: '>=10.12.0'}
 
+  valibot@1.5.0:
+    resolution: {integrity: sha512-nil6AkP2TChWL43Z5uJ6GTxX01CUA+g8LWUM+N/rB9NBbkUMaUsi9PUNzlUPgoKASgmx9f7eGOYpJ04/fSa6FQ==}
+    peerDependencies:
+      typescript: '>=5'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
   validate-npm-package-license@3.0.4:
     resolution: {integrity: sha512-DpKm2Ui/xN7/HQKCtpZxoRWBhZ9Z0kqtygG8XCgNQ8ZlDnxuQmWhj566j8fN4Cu3/JmbhsDo7fcAJq4s9h27Ew==}
 
@@ -18154,6 +18252,8 @@ snapshots:
 
   '@soda/get-current-script@1.0.2': {}
 
+  '@standard-schema/spec@1.1.0': {}
+
   '@tootallnate/once@2.0.0': {}
 
   '@trysound/sax@0.2.0': {}
@@ -18636,6 +18736,10 @@ snapshots:
   '@ungap/promise-all-settled@1.1.2': {}
 
   '@ungap/structured-clone@1.2.0': {}
+
+  '@valibot/to-json-schema@1.8.0(valibot@1.5.0(typescript@5.8.3))':
+    dependencies:
+      valibot: 1.5.0(typescript@5.8.3)
 
   '@vercel/nft@0.26.5(encoding@0.1.13)(supports-color@8.1.1)':
     dependencies:
@@ -29701,6 +29805,10 @@ snapshots:
       '@jridgewell/trace-mapping': 0.3.31
       '@types/istanbul-lib-coverage': 2.0.6
       convert-source-map: 2.0.0
+
+  valibot@1.5.0(typescript@5.8.3):
+    optionalDependencies:
+      typescript: 5.8.3
 
   validate-npm-package-license@3.0.4:
     dependencies:
