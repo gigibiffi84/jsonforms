@@ -3,6 +3,7 @@ import type { ErrorObject } from 'ajv';
 import { JsonSchema, UISchemaElement } from '../models';
 import get from 'lodash/get';
 import { errorsAt } from '../util';
+import type { FormValidator } from '../util/formValidator';
 import {
   JsonFormsCellRendererRegistryEntry,
   JsonFormsCore,
@@ -55,6 +56,9 @@ export const getUiSchema = (state: JsonFormsState): UISchemaElement =>
   extractUiSchema(get(state, 'jsonforms.core'));
 export const getAjv = (state: JsonFormsState): Ajv =>
   extractAjv(get(state, 'jsonforms.core'));
+export const getValidator = (
+  state: JsonFormsState
+): FormValidator | undefined => extractValidator(get(state, 'jsonforms.core'));
 export const getRenderers = (
   state: JsonFormsState
 ): JsonFormsRendererRegistryEntry[] => get(state, 'jsonforms.renderers');
@@ -69,5 +73,8 @@ export const extractData = (state: JsonFormsCore) => get(state, 'data');
 export const extractSchema = (state: JsonFormsCore) => get(state, 'schema');
 export const extractUiSchema = (state: JsonFormsCore) => get(state, 'uischema');
 export const extractAjv = (state: JsonFormsCore) => get(state, 'ajv');
+export const extractValidator = (
+  state: JsonFormsCore
+): FormValidator | undefined => get(state, 'validator');
 
 export const getConfig = (state: JsonFormsState) => state.jsonforms.config;
