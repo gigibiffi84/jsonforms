@@ -86,7 +86,10 @@ test('deriveJsonSchema - explains what to do when nothing provides a JSON Schema
 });
 
 test('validator - no issues for valid data', (t) => {
-  t.deepEqual(form.validator(form.jsonSchema).validate({ name: 'Ada', age: 36 }), []);
+  t.deepEqual(
+    form.validator(form.jsonSchema).validate({ name: 'Ada', age: 36 }),
+    []
+  );
 });
 
 test('validator - maps Valibot issues to paths and keywords', (t) => {

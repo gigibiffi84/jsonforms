@@ -347,7 +347,7 @@ const schemaMatchValidator = (schema: JsonSchema): FormValidator => ({
  * the library itself: no JSON Schema compilation, no code generation, so it
  * works under a Content Security Policy without `unsafe-eval`.
  *
- * Only synchronous schemas are supported, as JSON Forms 3.x validates
+ * Only synchronous schemas are supported, as JSON Forms validates
  * synchronously; a schema returning a Promise throws on the first validation.
  */
 export const standardSchemaValidator = (
@@ -361,7 +361,7 @@ export const standardSchemaValidator = (
       const result = schema['~standard'].validate(data);
       if (isPromise(result)) {
         throw new Error(
-          `The ${vendor} schema validates asynchronously. JSON Forms 3.x ` +
+          `The ${vendor} schema validates asynchronously. JSON Forms ` +
             'supports synchronous validation only; run asynchronous validation ' +
             'in a middleware and dispatch updateErrors.'
         );
