@@ -26,9 +26,13 @@ import type {
   StandardJSONSchemaV1,
   StandardSchemaV1,
 } from '@standard-schema/spec';
-import type {
+import {
+  decode,
   FormValidator,
+  FormValidatorFactory,
+  isSchemaMatch,
   JsonSchema,
+  resolveSchema,
   ValidationIssue,
 } from '@jsonforms/core';
 
@@ -70,11 +74,11 @@ export interface StandardSchemaForm {
   /** The JSON Schema JSON Forms renders the form from. */
   jsonSchema: JsonSchema;
   /**
-   * The Form Validator validating with the library; pass it as JSON Forms'
-   * `validator`. It is bound to the given schema, so derive a new one when the
-   * schema changes.
+   * Pass it as JSON Forms' `validator`. For `jsonSchema` it validates with the
+   * library; for other schemas, e.g. rule conditions, with core's schema
+   * matcher.
    */
-  validator: FormValidator;
+  validator: FormValidatorFactory;
 }
 
 const isStandardJsonSchema = (
@@ -290,6 +294,54 @@ const isPromise = (value: unknown): value is Promise<unknown> =>
   value !== null &&
   typeof (value as Promise<unknown>).then === 'function';
 
+const dereference = (
+  schema: JsonSchema | undefined,
+  rootSchema: JsonSchema
+): JsonSchema | undefined =>
+  typeof schema?.$ref === 'string'
+    ? resolveSchema(rootSchema, schema.$ref, rootSchema)
+    : schema;
+
+/**
+ * Best-effort lookup of the schema describing the value at `pointer`, walking
+ * `properties`, `items` and `additionalProperties`.
+ */
+export const schemaAt = (
+  rootSchema: JsonSchema | undefined,
+  pointer: string
+): JsonSchema | undefined => {
+  if (rootSchema === undefined) {
+    return undefined;
+  }
+  const segments = pointer === '' ? [] : pointer.split('/').slice(1);
+  let current = dereference(rootSchema, rootSchema);
+  for (const segment of segments.map(decode)) {
+    if (current === undefined) {
+      return undefined;
+    }
+    let next: JsonSchema | undefined;
+    if (current.properties && segment in current.properties) {
+      next = current.properties[segment];
+    } else if (/^\d+$/.test(segment) && current.items !== undefined) {
+      next = Array.isArray(current.items)
+        ? current.items[Number(segment)]
+        : current.items;
+    } else if (typeof current.additionalProperties === 'object') {
+      next = current.additionalProperties;
+    }
+    current = dereference(next, rootSchema);
+  }
+  return current;
+};
+
+/** Validates with core's schema matcher, e.g. for rule conditions. */
+const schemaMatchValidator = (schema: JsonSchema): FormValidator => ({
+  validate: (data) =>
+    isSchemaMatch(schema, data)
+      ? []
+      : [{ path: '', message: 'must match the schema' }],
+});
+
 /**
  * Wraps a Standard Schema as a JSON Forms Form Validator. Validation runs in
  * the library itself: no JSON Schema compilation, no code generation, so it
@@ -300,7 +352,8 @@ const isPromise = (value: unknown): value is Promise<unknown> =>
  */
 export const standardSchemaValidator = (
   schema: StandardSchemaV1,
-  options: Pick<StandardSchemaFormOptions, 'keyFor'> = {}
+  options: Pick<StandardSchemaFormOptions, 'keyFor'> = {},
+  jsonSchema?: JsonSchema
 ): FormValidator => {
   const vendor = vendorOf(schema);
   return {
@@ -316,14 +369,20 @@ export const standardSchemaValidator = (
       if (!result.issues) {
         return [];
       }
-      return result.issues.map(
-        (issue): ValidationIssue => ({
-          path: pathToPointer(issue.path),
-          key: options.keyFor?.(issue, vendor) ?? keyForIssue(issue, vendor),
+      return result.issues.map((issue): ValidationIssue => {
+        const path = pathToPointer(issue.path);
+        const key =
+          options.keyFor?.(issue, vendor) ?? keyForIssue(issue, vendor);
+        // `required` is raised against the object owning the property
+        const schemaPath =
+          key === 'required' ? path.slice(0, path.lastIndexOf('/')) : path;
+        return {
+          path,
+          key,
           message: issue.message,
-          severity: 'error',
-        })
-      );
+          parentSchema: schemaAt(jsonSchema, schemaPath),
+        };
+      });
     },
   };
 };
@@ -347,7 +406,14 @@ export const standardSchemaValidator = (
 export const fromStandardSchema = (
   schema: StandardSchemaV1,
   options: StandardSchemaFormOptions = {}
-): StandardSchemaForm => ({
-  jsonSchema: deriveJsonSchema(schema, options),
-  validator: standardSchemaValidator(schema, options),
-});
+): StandardSchemaForm => {
+  const jsonSchema = deriveJsonSchema(schema, options);
+  const formValidator = standardSchemaValidator(schema, options, jsonSchema);
+  return {
+    jsonSchema,
+    validator: (forSchema) =>
+      forSchema === jsonSchema
+        ? formValidator
+        : schemaMatchValidator(forSchema),
+  };
+};

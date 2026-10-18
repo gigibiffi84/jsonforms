@@ -2,6 +2,25 @@
 
 ## Migration to JSON Forms 3.9
 
+### `validator` in the core state is a Form Validator
+
+JSON Forms 3.9 adds a `validator` option to plug in a custom validation library. It takes a factory `(schema) => FormValidator` and takes precedence over `ajv`. Without it, Ajv validates as before.
+
+As a consequence, `JsonFormsCore.validator` now holds a `FormValidator` instead of the compiled Ajv `ValidateFunction`.
+If you read `state.validator` or build the core state by hand, call `validator.validate(data)`, which returns `ValidationIssue`s, or wrap a compiled Ajv function with `compiledAjvValidator(validateFn)`.
+
+### JSON Schema generation supports non-object root values
+
+`generateJsonSchema` now generates a schema matching the root value's actual type. In particular, arrays produce an array schema with an `items` schema, primitives produce their corresponding primitive schema, and `undefined` produces an empty schema.
+
+Previously all root values were handled as objects. For example, `generateJsonSchema([1, 2])` produced an object schema with properties named `"0"` and `"1"`; it now produces an array schema with an integer `items` schema. If you depend on the previous object-shaped output, adapt the generated schema before consuming it.
+
+### Default UI schema generation always returns a layout
+
+`generateDefaultUISchema` previously returned `null` when no UI schema elements could be generated. It now returns an empty layout of the requested type instead.
+
+If you call `generateDefaultUISchema` directly, remove any `null` handling and check the returned layout's `elements` when you need to know whether controls were generated.
+
 ### Data update paths treat all segments literally
 
 Data updates (e.g. dispatched `update` actions) previously wrote to the form data via lodash's `set`/`unset`, which interpret bracket notation and array indices in paths.

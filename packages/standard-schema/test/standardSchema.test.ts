@@ -32,6 +32,7 @@ import {
   fromStandardSchema,
   keyForIssue,
   pathToPointer,
+  schemaAt,
   standardSchemaValidator,
 } from '../src';
 
@@ -85,11 +86,11 @@ test('deriveJsonSchema - explains what to do when nothing provides a JSON Schema
 });
 
 test('validator - no issues for valid data', (t) => {
-  t.deepEqual(form.validator.validate({ name: 'Ada', age: 36 }), []);
+  t.deepEqual(form.validator(form.jsonSchema).validate({ name: 'Ada', age: 36 }), []);
 });
 
 test('validator - maps Valibot issues to paths and keywords', (t) => {
-  const issues = form.validator.validate({
+  const issues = form.validator(form.jsonSchema).validate({
     name: 'A',
     age: 17.5,
     email: 'nope',
@@ -108,13 +109,12 @@ test('validator - maps Valibot issues to paths and keywords', (t) => {
   t.truthy(byPath['/address/street required']);
   t.truthy(byPath['/address/zip~1code pattern']);
   for (const issue of issues) {
-    t.is(issue.severity, 'error');
     t.is(typeof issue.message, 'string');
   }
 });
 
 test('validator - a missing required property points at the property', (t) => {
-  const issues = form.validator.validate({});
+  const issues = form.validator(form.jsonSchema).validate({});
   t.deepEqual(
     issues.map((i) => [i.path, i.key]),
     [['/name', 'required']]
@@ -201,7 +201,33 @@ test('end to end - JSON Forms core stores the issues as errors with parentSchema
   t.is(streetErrors[0].keyword, 'required');
   t.deepEqual(streetErrors[0].params, { missingProperty: 'street' });
 
-  // No AJV instance is created while a Form Validator is configured.
+  // No Ajv instance is created while a Form Validator is configured.
   t.is(core.ajv, undefined);
-  t.is(core.validator, undefined);
+  t.truthy(core.validator);
+});
+
+test('validator - other schemas, e.g. rule conditions, use the schema matcher', (t) => {
+  const condition: JsonSchema = { const: 'bar' };
+  t.deepEqual(form.validator(condition).validate('bar'), []);
+  t.is(form.validator(condition).validate('baz').length, 1);
+});
+
+test('schemaAt - walks properties, items, additionalProperties and $ref', (t) => {
+  const root: JsonSchema = {
+    type: 'object',
+    properties: {
+      tags: { type: 'array', items: { type: 'string' } },
+      pet: { $ref: '#/definitions/pet' },
+      extra: { type: 'object', additionalProperties: { type: 'number' } },
+    },
+    definitions: {
+      pet: { type: 'object', properties: { kind: { type: 'string' } } },
+    },
+  };
+  t.is(schemaAt(root, ''), root);
+  t.deepEqual(schemaAt(root, '/tags/3'), { type: 'string' });
+  t.deepEqual(schemaAt(root, '/pet/kind'), { type: 'string' });
+  t.deepEqual(schemaAt(root, '/extra/anything'), { type: 'number' });
+  t.is(schemaAt(root, '/unknown/deeper'), undefined);
+  t.is(schemaAt(undefined, '/tags'), undefined);
 });

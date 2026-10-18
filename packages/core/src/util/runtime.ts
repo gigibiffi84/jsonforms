@@ -40,33 +40,15 @@ import type Ajv from 'ajv';
 import { composeWithUi } from './uischema';
 import isFunction from 'lodash/isFunction';
 import type { JsonSchema } from '../models';
-import {
-  FormValidator,
-  FormValidatorFactory,
-  isFormValidator,
-  isFormValidatorFactory,
-} from './formValidator';
+import type { FormValidator, FormValidatorFactory } from './formValidator';
 import { isSchemaMatch } from './structural';
 
 /**
- * What rule conditions are evaluated with:
- * - an AJV instance (the historical argument): `ajv.validate(schema, data)`;
- * - a Form Validator: its `matches`, or core's own schema matcher
- *   ({@link isSchemaMatch}) when it has none;
- * - a Form Validator Factory: one Form Validator per condition schema, cached;
- * - `undefined`: core's own schema matcher alone.
+ * What rule conditions are evaluated with: an Ajv instance, a Form Validator
+ * factory (one cached Form Validator per condition schema), or `undefined`
+ * for core's own schema matcher ({@link isSchemaMatch}).
  */
-export type RuleValidator =
-  | Ajv
-  | FormValidator
-  | FormValidatorFactory
-  | undefined;
-
-const isAjvInstance = (candidate: unknown): candidate is Ajv =>
-  typeof candidate === 'object' &&
-  candidate !== null &&
-  isFunction((candidate as Ajv).compile) &&
-  isFunction((candidate as Ajv).validate);
+export type RuleValidator = Ajv | FormValidatorFactory | undefined;
 
 const conditionValidators = new WeakMap<
   FormValidatorFactory,
@@ -93,25 +75,17 @@ const conditionValidatorFor = (
   return validator;
 };
 
-/**
- * Whether `data` satisfies the rule condition `schema`, evaluated with the
- * given {@link RuleValidator}.
- */
+/** Whether `data` satisfies the rule condition `schema`. */
 export const matchesConditionSchema = (
   schema: JsonSchema,
   data: unknown,
   validator: RuleValidator
 ): boolean => {
-  if (isAjvInstance(validator)) {
-    return validator.validate(schema, data) as boolean;
-  }
-  if (isFormValidatorFactory(validator)) {
+  if (isFunction(validator)) {
     return conditionValidatorFor(validator, schema).validate(data).length === 0;
   }
-  if (isFormValidator(validator)) {
-    return validator.matches
-      ? validator.matches(schema, data)
-      : isSchemaMatch(schema, data);
+  if (validator !== undefined) {
+    return validator.validate(schema, data) as boolean;
   }
   return isSchemaMatch(schema, data);
 };

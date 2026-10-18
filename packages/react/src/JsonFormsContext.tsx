@@ -143,7 +143,7 @@ export const JsonFormsStateProvider = ({
     schema,
     uischema,
     ajv,
-    validatorOption,
+    validatorFactory,
     validationMode,
     additionalErrors,
   } = initState.core;
@@ -156,7 +156,7 @@ export const JsonFormsStateProvider = ({
       initState.core,
       Actions.init(data, schema, uischema, {
         ajv,
-        validator: validatorOption,
+        validator: validatorFactory,
         validationMode,
         additionalErrors,
       }),
@@ -171,7 +171,7 @@ export const JsonFormsStateProvider = ({
           currentCore,
           Actions.updateCore(data, schema, uischema, {
             ajv,
-            validator: validatorOption,
+            validator: validatorFactory,
             validationMode,
             additionalErrors,
           }),
@@ -183,7 +183,7 @@ export const JsonFormsStateProvider = ({
       schema,
       uischema,
       ajv,
-      validatorOption,
+      validatorFactory,
       validationMode,
       additionalErrors,
     ]

@@ -75,7 +75,7 @@ Rule conditions in the UI schema are JSON Schema fragments. The library cannot e
 ### Limits
 
 - Synchronous schemas only. JSON Forms 3.x validates synchronously; a schema returning a Promise throws on the first validation. Run asynchronous validation in a middleware and dispatch `updateErrors`.
-- The validator is bound to the schema you pass. Call `fromStandardSchema` again when the schema changes.
+- `validator` validates with the library only for the `jsonSchema` returned next to it. Call `fromStandardSchema` again when the schema changes.
 - `format` is not evaluated in rule conditions.
 
 ## Proving the Content Security Policy case

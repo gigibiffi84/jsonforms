@@ -27,8 +27,11 @@ import type { Store } from './type';
 import { RankedTester, UISchemaTester } from '../testers';
 import { JsonSchema, UISchemaElement } from '../models';
 import type Ajv from 'ajv';
-import type { ErrorObject, ValidateFunction } from 'ajv';
-import type { FormValidator, ValidatorOption } from '../util/formValidator';
+import type { ErrorObject } from 'ajv';
+import type {
+  FormValidator,
+  FormValidatorFactory,
+} from '../util/formValidator';
 import { JsonFormsI18nState } from './i18nTypes';
 
 /**
@@ -90,22 +93,13 @@ export interface JsonFormsCore {
   uischema: UISchemaElement;
   errors?: ErrorObject[];
   additionalErrors?: ErrorObject[];
-  /**
-   * The compiled AJV validate function behind the current Form Validator.
-   * Only set while AJV performs the validation; kept for backwards
-   * compatibility, prefer `formValidator`.
-   */
-  validator?: ValidateFunction;
-  /**
-   * The AJV instance. Not created by default while a custom Form Validator
-   * is configured; then only set when one is passed explicitly.
-   */
+  /** The Form Validator bound to `schema`. */
+  validator?: FormValidator;
+  /** Not created by default while a custom Form Validator factory is set. */
   ajv?: Ajv;
+  /** The custom Form Validator factory, if one was given. */
+  validatorFactory?: FormValidatorFactory;
   validationMode?: ValidationMode;
-  /** The Form Validator bound to `schema`. Not consulted while validation is off. */
-  formValidator?: FormValidator;
-  /** The `validator` option in effect when a custom Form Validator is configured. */
-  validatorOption?: ValidatorOption;
 }
 
 export interface JsonFormsRendererRegistryEntry {

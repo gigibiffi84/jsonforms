@@ -1388,22 +1388,29 @@ const barCondition: SchemaBasedCondition = {
   schema: { const: 'bar' },
 };
 
-test('rules - schema condition uses the Form Validator matches when present', (t) => {
+/** A factory whose Form Validators accept data equal to the schema's `const`. */
+const constFactory = () => {
   const calls: Array<[JsonSchema, unknown]> = [];
-  const validator: FormValidator = {
-    validate: () => [],
-    matches: (schema, data) => {
+  const factory = (schema: JsonSchema): FormValidator => ({
+    validate: (data) => {
       calls.push([schema, data]);
-      return data === 'bar';
+      return data === (schema as { const: unknown }).const
+        ? []
+        : [{ path: '', key: 'const', message: 'mismatch' }];
     },
-  };
+  });
+  return { factory, calls };
+};
+
+test('rules - schema condition goes through the Form Validator factory', (t) => {
+  const { factory, calls } = constFactory();
   const uischema = ruleUischema(barCondition);
   t.true(
     evalVisibility(
       uischema,
       { ruleValue: 'bar' },
       undefined,
-      validator,
+      factory,
       undefined
     )
   );
@@ -1412,7 +1419,7 @@ test('rules - schema condition uses the Form Validator matches when present', (t
       uischema,
       { ruleValue: 'baz' },
       undefined,
-      validator,
+      factory,
       undefined
     )
   );
@@ -1420,29 +1427,6 @@ test('rules - schema condition uses the Form Validator matches when present', (t
     [barCondition.schema, 'bar'],
     [barCondition.schema, 'baz'],
   ]);
-});
-
-test('rules - a Form Validator without matches falls back to the Structural Matcher', (t) => {
-  const validator: FormValidator = { validate: () => [] };
-  const uischema = ruleUischema(barCondition);
-  t.true(
-    evalVisibility(
-      uischema,
-      { ruleValue: 'bar' },
-      undefined,
-      validator,
-      undefined
-    )
-  );
-  t.false(
-    evalVisibility(
-      uischema,
-      { ruleValue: 'baz' },
-      undefined,
-      validator,
-      undefined
-    )
-  );
 });
 
 test('rules - no validator at all also evaluates value constraints', (t) => {
@@ -1480,32 +1464,6 @@ test('rules - no validator at all also evaluates value constraints', (t) => {
   );
 });
 
-test('rules - a Form Validator without matches gets value constraints evaluated too', (t) => {
-  const validator: FormValidator = { validate: () => [] };
-  const uischema = ruleUischema({
-    scope: '#/properties/ruleValue',
-    schema: { not: { const: 'hidden' } },
-  });
-  t.true(
-    evalVisibility(
-      uischema,
-      { ruleValue: 'shown' },
-      undefined,
-      validator,
-      undefined
-    )
-  );
-  t.false(
-    evalVisibility(
-      uischema,
-      { ruleValue: 'hidden' },
-      undefined,
-      validator,
-      undefined
-    )
-  );
-});
-
 test('rules - no validator at all uses the Structural Matcher', (t) => {
   const uischema = ruleUischema({
     scope: '#/properties/ruleValue',
@@ -1536,14 +1494,10 @@ test('rules - no validator at all uses the Structural Matcher', (t) => {
 
 test('rules - a Form Validator Factory is called once per condition schema', (t) => {
   const compiled: JsonSchema[] = [];
+  const { factory: inner } = constFactory();
   const factory = (schema: JsonSchema): FormValidator => {
     compiled.push(schema);
-    return {
-      validate: (data) =>
-        data === (schema as { const: unknown }).const
-          ? []
-          : [{ path: '', key: 'const', message: 'mismatch' }],
-    };
+    return inner(schema);
   };
   const uischema = ruleUischema(barCondition);
   t.true(
@@ -1586,11 +1540,8 @@ test('rules - a Form Validator Factory is called once per condition schema', (t)
   t.is(compiled.length, 2);
 });
 
-test('rules - AND and OR compose with a Form Validator', (t) => {
-  const validator: FormValidator = {
-    validate: () => [],
-    matches: (schema, data) => data === (schema as { const: unknown }).const,
-  };
+test('rules - AND and OR compose with a Form Validator factory', (t) => {
+  const { factory } = constFactory();
   const and: AndCondition = {
     type: 'AND',
     conditions: [
@@ -1604,7 +1555,7 @@ test('rules - AND and OR compose with a Form Validator', (t) => {
       ruleUischema(and),
       { ruleValue: 'bar', other: 1 },
       undefined,
-      validator,
+      factory,
       undefined
     )
   );
@@ -1613,7 +1564,7 @@ test('rules - AND and OR compose with a Form Validator', (t) => {
       ruleUischema(and),
       { ruleValue: 'bar', other: 2 },
       undefined,
-      validator,
+      factory,
       undefined
     )
   );
@@ -1622,7 +1573,7 @@ test('rules - AND and OR compose with a Form Validator', (t) => {
       ruleUischema(or),
       { ruleValue: 'x', other: 1 },
       undefined,
-      validator,
+      factory,
       undefined
     )
   );
@@ -1631,13 +1582,13 @@ test('rules - AND and OR compose with a Form Validator', (t) => {
       ruleUischema(or),
       { ruleValue: 'x', other: 2 },
       undefined,
-      validator,
+      factory,
       undefined
     )
   );
 });
 
-test('rules - an AJV instance keeps working as the rule validator', (t) => {
+test('rules - an Ajv instance keeps working as the rule validator', (t) => {
   const uischema = ruleUischema({
     scope: '#/properties/ruleValue',
     schema: { type: 'string', minLength: 3 },
@@ -1662,11 +1613,8 @@ test('rules - an AJV instance keeps working as the rule validator', (t) => {
   );
 });
 
-test('rules - enablement and readonly go through the Form Validator too', (t) => {
-  const validator: FormValidator = {
-    validate: () => [],
-    matches: (_schema, data) => data === 'bar',
-  };
+test('rules - enablement and readonly go through the Form Validator factory too', (t) => {
+  const { factory } = constFactory();
   const enable: ControlElement = {
     type: 'Control',
     scope: '#/properties/value',
@@ -1678,99 +1626,61 @@ test('rules - enablement and readonly go through the Form Validator too', (t) =>
     rule: { effect: RuleEffect.READONLY, condition: barCondition },
   };
   t.true(
-    evalEnablement(
-      enable,
-      { ruleValue: 'bar' },
-      undefined,
-      validator,
-      undefined
-    )
+    evalEnablement(enable, { ruleValue: 'bar' }, undefined, factory, undefined)
   );
   t.false(
-    evalEnablement(enable, { ruleValue: 'x' }, undefined, validator, undefined)
+    evalEnablement(enable, { ruleValue: 'x' }, undefined, factory, undefined)
   );
   t.true(
-    evalReadonly(
-      readonly,
-      { ruleValue: 'bar' },
-      undefined,
-      validator,
-      undefined
-    )
+    evalReadonly(readonly, { ruleValue: 'bar' }, undefined, factory, undefined)
   );
   t.false(
-    evalReadonly(readonly, { ruleValue: 'x' }, undefined, validator, undefined)
+    evalReadonly(readonly, { ruleValue: 'x' }, undefined, factory, undefined)
   );
 });
 
 test('matchesConditionSchema - dispatches on the validator kind', (t) => {
   const schema: JsonSchema = { const: 'a' };
+  const { factory } = constFactory();
   t.true(matchesConditionSchema(schema, 'a', undefined));
   t.true(matchesConditionSchema(schema, 'a', createAjv()));
   t.false(matchesConditionSchema(schema, 'b', createAjv()));
-  t.true(matchesConditionSchema(schema, 'a', { validate: () => [] }));
-  t.false(
-    matchesConditionSchema(schema, 'a', {
-      validate: () => [],
-      matches: () => false,
-    })
-  );
-  t.false(
-    matchesConditionSchema(schema, 'a', () => ({
-      validate: () => [{ path: '', message: 'nope' }],
-    }))
-  );
+  t.true(matchesConditionSchema(schema, 'a', factory));
+  t.false(matchesConditionSchema(schema, 'b', factory));
 });
 
-test('getRuleValidator - AJV instance when no custom validator is configured', (t) => {
+test('getRuleValidator - Ajv instance when no validator factory is configured', (t) => {
   const ajv = createAjv();
   const state = { jsonforms: { core: { ajv } as unknown as JsonFormsCore } };
   t.is(getRuleValidator(state as any), ajv);
   t.is(getRuleValidator({ jsonforms: {} } as any), undefined);
 });
 
-test('getRuleValidator - the bound Form Validator when a custom one is configured', (t) => {
-  const ajv = createAjv();
-  const bound: FormValidator = { validate: () => [] };
-  const factory = () => bound;
+test('getRuleValidator - the validator factory when one is configured', (t) => {
+  const { factory } = constFactory();
   const state = {
     jsonforms: {
       core: {
-        ajv,
-        validatorOption: factory,
-        formValidator: bound,
+        ajv: createAjv(),
+        validatorFactory: factory,
       } as unknown as JsonFormsCore,
     },
   };
-  t.is(getRuleValidator(state as any), bound);
-  const off = {
-    jsonforms: {
-      core: {
-        ajv,
-        validatorOption: factory,
-        formValidator: undefined,
-      } as unknown as JsonFormsCore,
-    },
-  };
-  t.is(getRuleValidator(off as any), factory);
+  t.is(getRuleValidator(state as any), factory);
 });
 
-test('isVisible - integrates with getRuleValidator for a custom validator', (t) => {
-  const bound: FormValidator = {
-    validate: () => [],
-    matches: (_schema, data) => data === 'bar',
-  };
+test('isVisible - integrates with getRuleValidator for a validator factory', (t) => {
+  const { factory } = constFactory();
   const core = {
     ajv: {
       validate: () => {
-        throw new Error('AJV must not evaluate rules when a validator is set');
+        throw new Error('Ajv must not evaluate rules when a validator is set');
       },
       compile: () => {
         throw new Error('no compile');
       },
     },
-    validatorOption: bound,
-    formValidator: bound,
+    validatorFactory: factory,
   } as unknown as JsonFormsCore;
   const state = { jsonforms: { core } } as any;
   const uischema = ruleUischema(barCondition);

@@ -42,20 +42,17 @@ import {
   UpdateCoreAction,
 } from '../actions';
 import { JsonFormsCore, Reducer, ValidationMode } from '../store';
-import type { JsonSchema } from '../models';
 import type Ajv from 'ajv';
 import type { ErrorObject } from 'ajv';
 import isFunction from 'lodash/isFunction';
-import { createAjv, validate } from '../util/validator';
+import { createAjv } from '../util';
 import {
-  compiledAjvValidator,
   createAjvValidator,
   FormValidator,
-  isAjvFormValidator,
+  FormValidatorFactory,
   issuesToErrors,
-  toFormValidatorFactory,
-  ValidatorOption,
 } from '../util/formValidator';
+import type { JsonSchema } from '../models';
 
 export const initState: JsonFormsCore = {
   data: {},
@@ -64,10 +61,9 @@ export const initState: JsonFormsCore = {
   errors: [],
   validator: undefined,
   ajv: undefined,
+  validatorFactory: undefined,
   validationMode: 'ValidateAndShow',
   additionalErrors: [],
-  formValidator: undefined,
-  validatorOption: undefined,
 };
 
 export const getValidationMode = (
@@ -106,12 +102,7 @@ export const getAdditionalErrors = (
   return state.additionalErrors;
 };
 
-/**
- * The AJV instance for an action: the one given in the action's options, the
- * one already in state, or, when `createDefault` is true, a new default
- * instance. Core passes `createDefault = false` while a custom Form Validator
- * is configured, so no AJV instance exists unless the adopter provides one.
- */
+/** Without `createDefault`, no default Ajv instance is created. */
 export const getOrCreateAjv = (
   state: JsonFormsCore,
   action?: InitAction | UpdateCoreAction,
@@ -141,31 +132,25 @@ const hasAjvOption = (option: any): option is InitActionOptions => {
   return false;
 };
 
-const hasValidatorOption = (option: any): option is InitActionOptions =>
-  !!option && !isFunction(option.compile) && 'validator' in option;
+const hasValidatorOption = (option: any): option is InitActionOptions => {
+  if (option) {
+    return option.validator !== undefined;
+  }
+  return false;
+};
 
-/**
- * The custom `validator` option in effect for an action: the one given in the
- * action's options (an explicit `validator: undefined` switches back to AJV),
- * or the one already stored in state when the options do not mention a
- * validator at all. Returns `undefined` when AJV performs the validation.
- */
-export const getValidatorOption = (
+export const getValidatorFactory = (
   state: JsonFormsCore,
   action?: InitAction | UpdateCoreAction
-): ValidatorOption | undefined => {
+): FormValidatorFactory | undefined => {
   if (action && hasValidatorOption(action.options)) {
     return action.options.validator;
   }
-  return state.validatorOption;
+  return state.validatorFactory;
 };
 
-/**
- * Creates the Form Validator for `schema`: through the custom option when one
- * is configured, otherwise through the built-in AJV adapter.
- */
-const createFormValidator = (
-  option: ValidatorOption | undefined,
+const createValidator = (
+  validatorFactory: FormValidatorFactory | undefined,
   ajv: Ajv | undefined,
   schema: JsonSchema,
   validationMode: ValidationMode
@@ -173,42 +158,14 @@ const createFormValidator = (
   if (validationMode === 'NoValidation') {
     return undefined;
   }
-  const factory =
-    option === undefined
-      ? createAjvValidator(ajv)
-      : toFormValidatorFactory(option);
-  return factory(schema);
+  return (validatorFactory ?? createAjvValidator(ajv))(schema);
 };
 
-/**
- * The Form Validator to validate with: the cached one, or, for states that
- * only carry a compiled AJV function (e.g. constructed by hand), that
- * function wrapped as a Form Validator.
- */
-const currentFormValidator = (
-  state: JsonFormsCore
-): FormValidator | undefined =>
-  state.formValidator ??
-  (state.validator ? compiledAjvValidator(state.validator) : undefined);
-
-const runValidation = (
-  formValidator: FormValidator | undefined,
-  data: any,
-  schema: JsonSchema
-): ErrorObject[] => {
-  if (formValidator === undefined) {
-    return [];
-  }
-  if (isAjvFormValidator(formValidator)) {
-    // AJV errors already have the stored shape; hand them over untouched.
-    return validate(formValidator.validateFn, data);
-  }
-  return issuesToErrors(formValidator.validate(data), schema);
-};
-
-/** The compiled AJV function behind a Form Validator, for `state.validator`. */
-const legacyValidateFn = (formValidator: FormValidator | undefined) =>
-  isAjvFormValidator(formValidator) ? formValidator.validateFn : undefined;
+const validate = (
+  validator: FormValidator | undefined,
+  data: any
+): ErrorObject[] =>
+  validator === undefined ? [] : issuesToErrors(validator.validate(data));
 
 export const coreReducer: Reducer<JsonFormsCore, CoreActions> = (
   state = initState,
@@ -216,20 +173,20 @@ export const coreReducer: Reducer<JsonFormsCore, CoreActions> = (
 ) => {
   switch (action.type) {
     case INIT: {
-      const validatorOption = getValidatorOption(state, action);
+      const validatorFactory = getValidatorFactory(state, action);
       const thisAjv = getOrCreateAjv(
         state,
         action,
-        validatorOption === undefined
+        validatorFactory === undefined
       );
       const validationMode = getValidationMode(state, action);
-      const formValidator = createFormValidator(
-        validatorOption,
+      const v = createValidator(
+        validatorFactory,
         thisAjv,
         action.schema,
         validationMode
       );
-      const e = runValidation(formValidator, action.data, action.schema);
+      const e = validate(v, action.data);
       const additionalErrors = getAdditionalErrors(state, action);
 
       return {
@@ -239,41 +196,39 @@ export const coreReducer: Reducer<JsonFormsCore, CoreActions> = (
         uischema: action.uischema,
         additionalErrors,
         errors: e,
-        validator: legacyValidateFn(formValidator),
-        formValidator,
-        validatorOption,
+        validator: v,
         ajv: thisAjv,
+        validatorFactory,
         validationMode,
       };
     }
     case UPDATE_CORE: {
-      const validatorOption = getValidatorOption(state, action);
+      const validatorFactory = getValidatorFactory(state, action);
       const thisAjv = getOrCreateAjv(
         state,
         action,
-        validatorOption === undefined
+        validatorFactory === undefined
       );
       const validationMode = getValidationMode(state, action);
-      let formValidator = currentFormValidator(state);
+      let validator = state.validator;
       let errors = state.errors;
       if (
         state.schema !== action.schema ||
         state.validationMode !== validationMode ||
         state.ajv !== thisAjv ||
-        state.validatorOption !== validatorOption
+        state.validatorFactory !== validatorFactory
       ) {
         // revalidate only if necessary
-        formValidator = createFormValidator(
-          validatorOption,
+        validator = createValidator(
+          validatorFactory,
           thisAjv,
           action.schema,
           validationMode
         );
-        errors = runValidation(formValidator, action.data, action.schema);
+        errors = validate(validator, action.data);
       } else if (state.data !== action.data) {
-        errors = runValidation(formValidator, action.data, action.schema);
+        errors = validate(validator, action.data);
       }
-      const validator = legacyValidateFn(formValidator);
       const additionalErrors = getAdditionalErrors(state, action);
 
       const stateChanged =
@@ -281,10 +236,9 @@ export const coreReducer: Reducer<JsonFormsCore, CoreActions> = (
         state.schema !== action.schema ||
         state.uischema !== action.uischema ||
         state.ajv !== thisAjv ||
+        state.validatorFactory !== validatorFactory ||
         state.errors !== errors ||
         state.validator !== validator ||
-        state.formValidator !== formValidator ||
-        state.validatorOption !== validatorOption ||
         state.validationMode !== validationMode ||
         state.additionalErrors !== additionalErrors;
       return stateChanged
@@ -294,10 +248,9 @@ export const coreReducer: Reducer<JsonFormsCore, CoreActions> = (
             schema: action.schema,
             uischema: action.uischema,
             ajv: thisAjv,
+            validatorFactory,
             errors: isEqual(errors, state.errors) ? state.errors : errors,
-            validator,
-            formValidator,
-            validatorOption,
+            validator: validator,
             validationMode: validationMode,
             additionalErrors,
           }
@@ -305,39 +258,37 @@ export const coreReducer: Reducer<JsonFormsCore, CoreActions> = (
     }
     case SET_AJV: {
       const currentAjv = action.ajv;
-      const formValidator = createFormValidator(
-        state.validatorOption,
+      const validator = createValidator(
+        state.validatorFactory,
         currentAjv,
         state.schema,
         state.validationMode
       );
-      const errors = runValidation(formValidator, state.data, state.schema);
+      const errors = validate(validator, state.data);
       return {
         ...state,
         ajv: currentAjv,
-        validator: legacyValidateFn(formValidator),
-        formValidator,
+        validator,
         errors,
       };
     }
     case SET_SCHEMA: {
       const needsNewValidator =
         action.schema &&
-        (state.ajv || state.validatorOption) &&
+        (state.validatorFactory || state.ajv) &&
         state.validationMode !== 'NoValidation';
-      const formValidator = needsNewValidator
-        ? createFormValidator(
-            state.validatorOption,
+      const v = needsNewValidator
+        ? createValidator(
+            state.validatorFactory,
             state.ajv,
             action.schema,
             state.validationMode
           )
-        : currentFormValidator(state);
-      const errors = runValidation(formValidator, state.data, action.schema);
+        : state.validator;
+      const errors = validate(v, state.data);
       return {
         ...state,
-        validator: legacyValidateFn(formValidator),
-        formValidator,
+        validator: v,
         schema: action.schema,
         errors,
       };
@@ -354,11 +305,7 @@ export const coreReducer: Reducer<JsonFormsCore, CoreActions> = (
       } else if (action.path === '') {
         // empty path is ok
         const result = action.updater(cloneDeep(state.data));
-        const errors = runValidation(
-          currentFormValidator(state),
-          result,
-          state.schema
-        );
+        const errors = validate(state.validator, result);
         return {
           ...state,
           data: result,
@@ -381,11 +328,7 @@ export const coreReducer: Reducer<JsonFormsCore, CoreActions> = (
             action.path
           );
         }
-        const errors = runValidation(
-          currentFormValidator(state),
-          newState,
-          state.schema
-        );
+        const errors = validate(state.validator, newState);
         return {
           ...state,
           data: newState,
@@ -404,26 +347,25 @@ export const coreReducer: Reducer<JsonFormsCore, CoreActions> = (
         return state;
       }
       if (action.validationMode === 'NoValidation') {
+        const errors = validate(undefined, state.data);
         return {
           ...state,
-          errors: [],
           validator: undefined,
-          formValidator: undefined,
+          errors,
           validationMode: action.validationMode,
         };
       }
       if (state.validationMode === 'NoValidation') {
-        const formValidator = createFormValidator(
-          state.validatorOption,
+        const validator = createValidator(
+          state.validatorFactory,
           state.ajv,
           state.schema,
           action.validationMode
         );
-        const errors = runValidation(formValidator, state.data, state.schema);
+        const errors = validate(validator, state.data);
         return {
           ...state,
-          validator: legacyValidateFn(formValidator),
-          formValidator,
+          validator,
           errors,
           validationMode: action.validationMode,
         };

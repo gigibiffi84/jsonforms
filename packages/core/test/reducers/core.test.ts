@@ -44,7 +44,10 @@ import {
   getValidator,
   subErrorsAt,
 } from '../../src/store';
-import type { FormValidator } from '../../src/util/formValidator';
+import {
+  compiledAjvValidator,
+  FormValidator,
+} from '../../src/util/formValidator';
 import { getControlPath } from '../../src/util';
 
 test('core reducer should support v7', (t) => {
@@ -349,7 +352,7 @@ test('core reducer - update - undefined data should update for given path', (t) 
       type: 'Label',
     },
     errors: [],
-    validator: new Ajv().compile(schema),
+    validator: compiledAjvValidator(new Ajv().compile(schema)),
   };
 
   const after = coreReducer(
@@ -456,7 +459,7 @@ test('core reducer - update - empty path should update root state', (t) => {
     uischema: {
       type: 'Label',
     },
-    validator: new Ajv().compile(schema),
+    validator: compiledAjvValidator(new Ajv().compile(schema)),
   };
 
   const after = coreReducer(
@@ -497,7 +500,7 @@ test('core reducer - update - providing a path should update data only belonging
     uischema: {
       type: 'Label',
     },
-    validator: new Ajv().compile(schema),
+    validator: compiledAjvValidator(new Ajv().compile(schema)),
   };
 
   const after = coreReducer(
@@ -537,7 +540,7 @@ test('core reducer - update - should update errors', (t) => {
     uischema: {
       type: 'Label',
     },
-    validator: new Ajv().compile(schema),
+    validator: compiledAjvValidator(new Ajv().compile(schema)),
   };
 
   const after = coreReducer(
@@ -587,7 +590,7 @@ test('core reducer - update - setting a state slice as undefined should remove t
       type: 'Label',
     },
     errors: [],
-    validator: new Ajv().compile(schema),
+    validator: compiledAjvValidator(new Ajv().compile(schema)),
   };
 
   const after = coreReducer(
@@ -624,7 +627,7 @@ test('core reducer - update - numeric property key on nested object should not b
       type: 'Label',
     },
     errors: [],
-    validator: new Ajv().compile(schema),
+    validator: compiledAjvValidator(new Ajv().compile(schema)),
   };
 
   const after = coreReducer(
@@ -657,7 +660,7 @@ test('core reducer - update - property name containing brackets should be treate
       type: 'Label',
     },
     errors: [],
-    validator: new Ajv().compile(schema),
+    validator: compiledAjvValidator(new Ajv().compile(schema)),
   };
 
   const afterFirst = coreReducer(
@@ -699,7 +702,7 @@ test('core reducer - update - array elements addressed by numeric segment contin
       type: 'Label',
     },
     errors: [],
-    validator: new Ajv().compile(schema),
+    validator: compiledAjvValidator(new Ajv().compile(schema)),
   };
 
   const after = coreReducer(
@@ -744,7 +747,7 @@ test('core reducer - update - rebuilds containers along the path while keeping s
     schema,
     uischema: { type: 'Label' },
     errors: [],
-    validator: new Ajv().compile(schema),
+    validator: compiledAjvValidator(new Ajv().compile(schema)),
   };
 
   const after = coreReducer(
@@ -779,7 +782,7 @@ test('core reducer - update - creates an array when the schema declares one even
       type: 'Label',
     },
     errors: [],
-    validator: new Ajv().compile(schema),
+    validator: compiledAjvValidator(new Ajv().compile(schema)),
   };
 
   const after = coreReducer(
@@ -810,7 +813,7 @@ test('core reducer - update - creates a schema-declared array of objects when th
     schema,
     uischema: { type: 'Label' },
     errors: [],
-    validator: new Ajv().compile(schema),
+    validator: compiledAjvValidator(new Ajv().compile(schema)),
   };
 
   const after = coreReducer(
@@ -846,7 +849,7 @@ test('core reducer - update - unset works for numeric and bracket-containing key
     schema,
     uischema: { type: 'Label' },
     errors: [],
-    validator: new Ajv().compile(schema),
+    validator: compiledAjvValidator(new Ajv().compile(schema)),
   };
 
   const afterNumeric = coreReducer(
@@ -886,7 +889,7 @@ test('core reducer - update - updater receives the current value for special pro
     schema,
     uischema: { type: 'Label' },
     errors: [],
-    validator: new Ajv().compile(schema),
+    validator: compiledAjvValidator(new Ajv().compile(schema)),
   };
 
   const afterBracket = coreReducer(
@@ -2226,7 +2229,7 @@ test('core reducer - setAjv - re-enabling validation compiles with the new ajv i
 
 const fakeValidator = (badValue = 'bad') => {
   const calls = { compile: [] as JsonSchema[], validate: [] as unknown[] };
-  const factory = (schema: JsonSchema) => {
+  const factory = (schema: JsonSchema): FormValidator => {
     calls.compile.push(schema);
     return {
       validate: (data: unknown) => {
@@ -2248,7 +2251,7 @@ const fooSchema: JsonSchema = {
 
 const explodingAjv = {
   compile: () => {
-    throw new Error('AJV must not compile when a validator is given');
+    throw new Error('Ajv must not compile when a validator is given');
   },
 } as unknown as Ajv;
 
@@ -2267,32 +2270,9 @@ test('core reducer - validator option - factory is called with the schema and va
   t.is(after.errors[0].instancePath, '/foo');
   t.is(after.errors[0].keyword, 'const');
   t.is(after.errors[0].message, 'must be good');
-  t.deepEqual(after.errors[0].parentSchema, fooSchema.properties.foo);
-  t.is(after.validator, undefined);
-  t.truthy(after.formValidator);
-  t.is(after.validatorOption, factory);
+  t.truthy(after.validator);
+  t.is(after.validatorFactory, factory);
   t.is(after.ajv, explodingAjv);
-});
-
-test('core reducer - validator option - a bound FormValidator object is accepted', (t) => {
-  const bound = {
-    validate: () => [
-      {
-        path: '',
-        key: 'required',
-        message: 'is required',
-        params: { missingProperty: 'foo' },
-      },
-    ],
-  };
-  const after = coreReducer(
-    undefined,
-    init({}, fooSchema, undefined, { validator: bound })
-  );
-  t.is(after.formValidator, bound);
-  t.is(after.errors.length, 1);
-  t.deepEqual(after.errors[0].params, { missingProperty: 'foo' });
-  t.deepEqual(after.errors[0].parentSchema, fooSchema);
 });
 
 test('core reducer - validator option - updateCore recompiles only when the schema changes', (t) => {
@@ -2321,7 +2301,7 @@ test('core reducer - validator option - updateCore recompiles only when the sche
   t.is(after.errors.length, 1);
 });
 
-test('core reducer - validator option - options without a validator key keep the current validator', (t) => {
+test('core reducer - validator option - undefined keeps the current validator', (t) => {
   const { factory, calls } = fakeValidator();
   const before = coreReducer(
     undefined,
@@ -2329,34 +2309,13 @@ test('core reducer - validator option - options without a validator key keep the
   );
   const after = coreReducer(
     before,
-    updateCore({ foo: 'bad' }, fooSchema, undefined, {
-      validationMode: 'ValidateAndShow',
-    })
+    updateCore({ foo: 'bad' }, fooSchema, undefined, { validator: undefined })
   );
-  t.is(after.validatorOption, factory);
+  t.is(after.validatorFactory, factory);
+  t.is(after.validator, before.validator);
+  t.is(calls.compile.length, 1);
   t.is(calls.validate.length, 2);
   t.is(after.errors.length, 1);
-});
-
-test('core reducer - validator option - an explicit undefined validator switches back to AJV', (t) => {
-  const { factory } = fakeValidator();
-  const schema: JsonSchema = {
-    type: 'object',
-    properties: { foo: { type: 'string', const: 'bar' } },
-  };
-  const before = coreReducer(
-    undefined,
-    init({ foo: 'baz' }, schema, undefined, { validator: factory })
-  );
-  t.is(before.errors.length, 0);
-  const after = coreReducer(
-    before,
-    updateCore({ foo: 'baz' }, schema, undefined, { validator: undefined })
-  );
-  t.is(after.validatorOption, undefined);
-  t.is(after.errors.length, 1);
-  t.is(after.errors[0].keyword, 'const');
-  t.truthy(after.validator);
 });
 
 test('core reducer - validator option - update revalidates through the validator', (t) => {
@@ -2396,7 +2355,6 @@ test('core reducer - validator option - NoValidation skips the validator and re-
   t.is(before.errors.length, 1);
   const hidden = coreReducer(before, setValidationMode('NoValidation'));
   t.is(hidden.errors.length, 0);
-  t.is(hidden.formValidator, undefined);
   t.is(hidden.validator, undefined);
   const validateCalls = calls.validate.length;
   const updated = coreReducer(
@@ -2423,17 +2381,17 @@ test('core reducer - validator option - setAjv does not override a custom valida
   t.is(after.errors[0].keyword, 'const');
 });
 
-test('core reducer - validator option - issues are normalized to the AJV error shape', (t) => {
-  const bound = {
-    validate: () => [
-      { path: '/foo', message: 'no key' },
-      { path: '/foo', key: 'required', message: 'is required' },
-      { path: '/foo', key: 'x', message: 'warn', severity: 'warning' },
-    ],
-  } as unknown as FormValidator;
+test('core reducer - validator option - issues are normalized to the Ajv error shape', (t) => {
   const after = coreReducer(
     undefined,
-    init({}, fooSchema, undefined, { validator: bound })
+    init({}, fooSchema, undefined, {
+      validator: () => ({
+        validate: () => [
+          { path: '/foo', message: 'no key' },
+          { path: '/foo', key: 'required', message: 'is required' },
+        ],
+      }),
+    })
   );
   t.is(after.errors.length, 2);
   t.is(after.errors[0].keyword, 'custom');
@@ -2443,12 +2401,11 @@ test('core reducer - validator option - issues are normalized to the AJV error s
   t.deepEqual(errorAt('foo', fooSchema)(after).length, 2);
 });
 
-test('core reducer - ajv path - formValidator is an AJV-backed validator and state.validator is kept', (t) => {
+test('core reducer - without validator option - Ajv is the default Form Validator', (t) => {
   const after = coreReducer(undefined, init({ foo: 'bar' }, fooSchema));
-  t.truthy(after.formValidator);
   t.truthy(after.validator);
-  t.is(after.validatorOption, undefined);
-  t.is(after.formValidator.validate({ foo: 1 }).length, 1);
+  t.is(after.validatorFactory, undefined);
+  t.is(after.validator.validate({ foo: 1 }).length, 1);
 });
 
 test('core reducer - validator option - no default ajv instance is created', (t) => {
@@ -2472,7 +2429,7 @@ test('core reducer - validator option - no default ajv instance is created', (t)
     setValidationMode('ValidateAndShow')
   );
   t.is(toggled.ajv, undefined);
-  t.truthy(toggled.formValidator);
+  t.truthy(toggled.validator);
 });
 
 test('core reducer - validator option - an explicitly passed ajv is still kept', (t) => {
@@ -2485,23 +2442,6 @@ test('core reducer - validator option - an explicitly passed ajv is still kept',
   t.is(after.ajv, ajv);
 });
 
-test('core reducer - validator option - switching back to ajv creates the default instance', (t) => {
-  const { factory } = fakeValidator();
-  const before = coreReducer(
-    undefined,
-    init({ foo: 1 }, fooSchema, undefined, { validator: factory })
-  );
-  t.is(before.ajv, undefined);
-  const after = coreReducer(
-    before,
-    updateCore({ foo: 1 }, fooSchema, undefined, { validator: undefined })
-  );
-  t.truthy(after.ajv);
-  t.truthy(after.validator);
-  t.is(after.errors.length, 1);
-  t.is(after.errors[0].keyword, 'type');
-});
-
 test('core reducer - no validator option - default ajv is still created', (t) => {
   const after = coreReducer(undefined, init({}, fooSchema));
   t.truthy(after.ajv);
@@ -2509,13 +2449,13 @@ test('core reducer - no validator option - default ajv is still created', (t) =>
   t.is(getOrCreateAjv({} as JsonFormsCore, undefined, false), undefined);
 });
 
-test('core reducer - validator option - getValidator selector exposes the bound validator', (t) => {
+test('core reducer - validator option - getValidator selector exposes the validator', (t) => {
   const { factory } = fakeValidator();
   const core = coreReducer(
     undefined,
     init({ foo: 'ok' }, fooSchema, undefined, { validator: factory })
   );
-  t.is(getValidator({ jsonforms: { core } } as any), core.formValidator);
+  t.is(getValidator({ jsonforms: { core } } as any), core.validator);
   t.is(getValidator({ jsonforms: {} } as any), undefined);
 });
 

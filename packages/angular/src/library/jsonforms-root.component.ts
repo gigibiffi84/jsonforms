@@ -44,7 +44,7 @@ import {
   UISchemaElement,
   UISchemaTester,
   ValidationMode,
-  ValidatorOption,
+  FormValidatorFactory,
 } from '@jsonforms/core';
 import type Ajv from 'ajv';
 import type { ErrorObject } from 'ajv';
@@ -72,7 +72,7 @@ export class JsonForms implements DoCheck, OnChanges, OnInit, OnDestroy {
   @Input() readonly: boolean;
   @Input() validationMode: ValidationMode;
   @Input() ajv: Ajv;
-  @Input() validator: ValidatorOption;
+  @Input() validator: FormValidatorFactory;
   @Input() config: JsonFormsAngularConfig;
   @Input() i18n: JsonFormsI18nState;
   @Input() additionalErrors: ErrorObject[];
@@ -97,7 +97,7 @@ export class JsonForms implements DoCheck, OnChanges, OnInit, OnDestroy {
           uischema: this.uischema,
           schema: this.schema,
           ajv: this.ajv,
-          validatorOption: this.validator,
+          validatorFactory: this.validator,
           validationMode: this.validationMode,
           additionalErrors: this.additionalErrors,
         },

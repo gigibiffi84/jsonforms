@@ -95,9 +95,12 @@ const onChange = (event: JsonFormsChangeEvent): void => {
       monaco.Uri.parse(toDataUri(props.example.name)),
       event.data !== undefined ? JSON.stringify(event.data, null, 2) : ''
     );
-    state.data = event.data;
   }
   errors.value = event.errors;
+};
+
+const onDataChange = (data: any): void => {
+  state.data = data;
 };
 
 const reloadMonacoSchema = () => {
@@ -347,7 +350,11 @@ const handleAction = (action: Action) => {
                         </v-toolbar>
                       </v-card-title>
                       <v-divider class="mx-4"></v-divider>
-                      <example-form :state="state" @jsfchange="onChange" />
+                      <example-form
+                        :state="state"
+                        @update:data="onDataChange"
+                        @jsfchange="onChange"
+                      />
                     </v-card>
                   </pane>
                   <pane>
@@ -393,7 +400,12 @@ const handleAction = (action: Action) => {
                   </pane>
                 </splitpanes>
 
-                <example-form :state="state" @jsfchange="onChange" v-else />
+                <example-form
+                  :state="state"
+                  @update:data="onDataChange"
+                  @jsfchange="onChange"
+                  v-else
+                />
               </div>
             </v-card>
           </v-window-item>
@@ -506,7 +518,11 @@ const handleAction = (action: Action) => {
       </v-snackbar>
     </v-container>
     <div class="json-forms" v-else>
-      <example-form :state="state" @jsfchange="onChange" />
+      <example-form
+        :state="state"
+        @update:data="onDataChange"
+        @jsfchange="onChange"
+      />
     </div>
   </div>
 </template>

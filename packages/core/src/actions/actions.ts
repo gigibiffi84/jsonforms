@@ -25,7 +25,7 @@
 
 import type AJV from 'ajv';
 import type { ErrorObject } from 'ajv';
-import type { ValidatorOption } from '../util/formValidator';
+import type { FormValidatorFactory } from '../util/formValidator';
 import { JsonSchema, UISchemaElement } from '../models';
 import { generateDefaultUISchema, generateJsonSchema } from '../generators';
 
@@ -146,15 +146,9 @@ export interface UpdateCoreAction {
 }
 
 export interface InitActionOptions {
-  /** The AJV instance to validate with. Ignored for form validation when `validator` is set. */
   ajv?: AJV;
-  /**
-   * A custom Form Validator: a factory producing one per schema, or a
-   * validator already bound to the schema. Takes precedence over `ajv`.
-   * Passing `undefined` explicitly switches back to AJV; leaving the key out
-   * keeps the validator currently in use.
-   */
-  validator?: ValidatorOption;
+  /** Creates the Form Validator for the schema. Takes precedence over `ajv`. */
+  validator?: FormValidatorFactory;
   validationMode?: ValidationMode;
   additionalErrors?: ErrorObject[];
 }

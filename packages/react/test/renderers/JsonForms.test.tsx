@@ -1073,7 +1073,7 @@ test('JsonForms should pass the validator option to core and show its errors', (
     />
   );
   const initState = wrapper.find(JsonFormsStateProvider).props().initState;
-  expect(initState.core.validatorOption).toBe(validator);
+  expect(initState.core.validatorFactory).toBe(validator);
   expect(compiled).toEqual([fixture.schema]);
   expect(wrapper.find('h5').text()).toBe('Custom validator says no');
   wrapper.unmount();

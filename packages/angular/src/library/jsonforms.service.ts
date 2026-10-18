@@ -46,7 +46,7 @@ import {
   updateI18n,
   Middleware,
   defaultMiddleware,
-  ValidatorOption,
+  FormValidatorFactory,
 } from '@jsonforms/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import type { JsonFormsBaseRenderer } from './base.renderer';
@@ -295,7 +295,7 @@ export class JsonFormsAngularService {
     ajv: Ajv | typeof USE_STATE_VALUE,
     validationMode: ValidationMode | typeof USE_STATE_VALUE,
     additionalErrors: ErrorObject[] | typeof USE_STATE_VALUE,
-    validator: ValidatorOption | typeof USE_STATE_VALUE = USE_STATE_VALUE
+    validator: FormValidatorFactory | typeof USE_STATE_VALUE = USE_STATE_VALUE
   ): void {
     const newData = data === USE_STATE_VALUE ? this._state.core.data : data;
     const newSchema =
@@ -317,7 +317,7 @@ export class JsonFormsAngularService {
         : additionalErrors;
     const newValidator =
       validator === USE_STATE_VALUE
-        ? this._state.core.validatorOption
+        ? this._state.core.validatorFactory
         : validator;
     this.updateCore(
       Actions.updateCore(newData, newSchema, newUischema, {
